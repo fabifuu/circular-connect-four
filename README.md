@@ -11,7 +11,14 @@ The condition for winning is to achieve **four-in-a-row** in any of the followin
 3. **Diagonal (Spiral)** – Colors are aligned diagonally, forming a spiral pattern across the board.
 
 ## Example of winning move
+![Vertical or radial winning move for red](vertical.png)
+Vertical or radial winning move for red
 
+![Circular or concentric winning move for red](circular.png)
+Circular or concentric winning move for red
+
+![Diagonal or spiral winning move for red](vertical.png)
+Diagonal or spiral winning move for red
 
 [**Play Now**](https://fabifuu.github.io/circular-connect-four)
 
