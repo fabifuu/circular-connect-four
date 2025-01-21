@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Circular Connect Four</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        .game-container {
+            margin: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .board {
+            width: 500px;
+            height: 500px;
+            position: relative;
+        }
+        .segment {
+            position: absolute;
+            transform-origin: 100% 100%;
+            cursor: pointer;
+            stroke: black;
+            stroke-width: 0.7;
+            fill: white;
+            transition: fill 0.3s;
+        }
+        .segment:hover {
+            fill: #e0e0e0;
+        }
+        .segment.red {
+            fill: #ff4444;
+        }
+        .segment.blue {
+            fill: #4444ff;
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            width: 100%;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 20px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        /* Blue button for the tutorial */
+        #tutorialBtn {
+            background-color: #007bff; /* Blue color */
+            color: white; /* White text */
+        }
+
+        #tutorialBtn:hover {
+            background-color: #0056b3; /* Darker blue on hover */
+        }
+    </style>
+</head>
+<body>
+    <h1>Circular Connect Four</h1>
+    <div class="game-container">
+        <svg class="board" viewBox="0 0 100 100">
+            <!-- Segments will be added here by JavaScript -->
+        </svg>
+        <div class="controls">
+            <button id="undoBtn" disabled>◀&nbsp;Undo</button>
+            <button id="redoBtn" disabled>Redo&nbsp;▶</button>
+            <button id="resetBtn">Reset</button>
+            <button id="tutorialBtn" onclick="window.open('https://example.com/tutorial', '_blank')">Tutorial</button>
+        </div>
+        <div class="status" id="status">Red's turn</div>
+    </div>
+
+    <script>
+        const SEGMENTS = 8;
+        const RINGS = 4;
+        const CENTER = 50;
+        const RADIUS = 45;
+
+        class Game {
+            constructor() {
+                this.currentPlayer = 'red';
+                this.board = Array(RINGS).fill().map(() => Array(SEGMENTS).fill(null));
+                this.history = [];
+                this.redoStack = [];
+                this.gameOver = false;
+                
+                this.initializeBoard();
+                this.updateButtons();
+            }
+
+            initializeBoard() {
+                const svg = document.querySelector('.board');
+                svg.innerHTML = '';
+
+                for (let ring = 0; ring < RINGS; ring++) {
+                    const outerRadius = RADIUS * (ring + 1) / RINGS;
+                    const innerRadius = RADIUS * ring / RINGS;
+
+                    for (let segment = 0; segment < SEGMENTS; segment++) {
+                        const startAngle = segment * 360 / SEGMENTS;
+                        const endAngle = (segment + 1) * 360 / SEGMENTS;
+                        
+                        const path = this.createSegmentPath(innerRadius, outerRadius, startAngle, endAngle);
+                        const element = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                        
+                        element.setAttribute('d', path);
+                        element.classList.add('segment');
+                        element.dataset.ring = ring;
+                        element.dataset.segment = segment;
+                        
+                        element.addEventListener('click', () => this.makeMove(ring, segment));
+                        svg.appendChild(element);
+                    }
+                }
+            }
+
+            createSegmentPath(innerRadius, outerRadius, startAngle, endAngle) {
+                const startRadians = (startAngle - 90) * Math.PI / 180;
+                const endRadians = (endAngle - 90) * Math.PI / 180;
+
+                const innerStartX = CENTER + innerRadius * Math.cos(startRadians);
+                const innerStartY = CENTER + innerRadius * Math.sin(startRadians);
+                const innerEndX = CENTER + innerRadius * Math.cos(endRadians);
+                const innerEndY = CENTER + innerRadius * Math.sin(endRadians);
+                
+                const outerStartX = CENTER + outerRadius * Math.cos(startRadians);
+                const outerStartY = CENTER + outerRadius * Math.sin(startRadians);
+                const outerEndX = CENTER + outerRadius * Math.cos(endRadians);
+                const outerEndY = CENTER + outerRadius * Math.sin(endRadians);
+
+                return `
+                    M ${innerStartX} ${innerStartY}
+                    L ${outerStartX} ${outerStartY}
+                    A ${outerRadius} ${outerRadius} 0 0 1 ${outerEndX} ${outerEndY}
+                    L ${innerEndX} ${innerEndY}
+                    A ${innerRadius} ${innerRadius} 0 0 0 ${innerStartX} ${innerStartY}
+                    Z
+                `;
+            }
+
+            makeMove(ring, segment) {
+                if (this.gameOver || this.board[ring][segment] !== null) return;
+
+                this.board[ring][segment] = this.currentPlayer;
+                this.history.push({ring, segment, player: this.currentPlayer});
+                this.redoStack = [];
+                
+                this.updateBoard();
+                
+                if (this.checkWin(ring, segment)) {
+                    this.gameOver = true;
+                    document.getElementById('status').textContent = `${this.currentPlayer.toUpperCase()} wins!`;
+                } else {
+                    this.currentPlayer = this.currentPlayer === 'red' ? 'blue' : 'red';
+                    document.getElementById('status').textContent = `${this.currentPlayer.toUpperCase()}'s turn`;
+                }
+                
+                this.updateButtons();
+            }
+
+            checkWin(lastRing, lastSegment) {
+				const directions = [
+					// Vertical
+					[[0, 0], [1, 0], [2, 0], [3, 0]],
+					// Circular
+					[[0, 0], [0, 1], [0, 2], [0, 3]],
+					[[1, 0], [1, 1], [1, 2], [1, 3]],
+					[[2, 0], [2, 1], [2, 2], [2, 3]],
+					[[3, 0], [3, 1], [3, 2], [3, 3]],
+					// Diagonal
+					[[0, 0], [1, 1], [2, 2], [3, 3]],
+					[[0, 0], [1, -1], [2, -2], [3, -3]],
+				];
+
+                const player = this.board[lastRing][lastSegment];
+
+                for (let direction of directions) {
+                    for (let startRing = 0; startRing <= RINGS - 4; startRing++) {
+                        for (let startSegment = 0; startSegment < SEGMENTS; startSegment++) {
+                            if (this.checkLine(startRing, startSegment, direction, player)) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            checkLine(startRing, startSegment, direction, player) {
+                for (let i = 0; i < 4; i++) {
+                    const ring = startRing + direction[i][0];
+                    let segment = (startSegment + direction[i][1] + SEGMENTS) % SEGMENTS;
+                    
+                    if (ring < 0 || ring >= RINGS || this.board[ring][segment] !== player) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            undo() {
+                if (this.history.length === 0) return;
+                
+                const move = this.history.pop();
+                this.redoStack.push(move);
+                this.board[move.ring][move.segment] = null;
+                this.currentPlayer = move.player;
+                this.gameOver = false;
+                
+                this.updateBoard();
+                document.getElementById('status').textContent = `${this.currentPlayer.toUpperCase()}'s turn`;
+                this.updateButtons();
+            }
+
+            redo() {
+                if (this.redoStack.length === 0) return;
+                
+                const move = this.redoStack.pop();
+                this.makeMove(move.ring, move.segment);
+            }
+
+            reset() {
+                this.board = Array(RINGS).fill().map(() => Array(SEGMENTS).fill(null));
+                this.history = [];
+                this.redoStack = [];
+                this.currentPlayer = 'red';
+                this.gameOver = false;
+                
+                this.updateBoard();
+                document.getElementById('status').textContent = "Red's turn";
+                this.updateButtons();
+            }
+
+            updateBoard() {
+                const segments = document.querySelectorAll('.segment');
+                segments.forEach(segment => {
+                    const ring = parseInt(segment.dataset.ring);
+                    const seg = parseInt(segment.dataset.segment);
+                    segment.classList.remove('red', 'blue');
+                    if (this.board[ring][seg]) {
+                        segment.classList.add(this.board[ring][seg]);
+                    }
+                });
+            }
+
+            updateButtons() {
+                document.getElementById('undoBtn').disabled = this.history.length === 0;
+                document.getElementById('redoBtn').disabled = this.redoStack.length === 0;
+            }
+        }
+
+        const game = new Game();
+        
+        document.getElementById('undoBtn').addEventListener('click', () => game.undo());
+        document.getElementById('redoBtn').addEventListener('click', () => game.redo());
+        document.getElementById('resetBtn').addEventListener('click', () => game.reset());
+    </script>
+</body>
+</html>
