@@ -86,7 +86,7 @@
             <button id="undoBtn" disabled>◀&nbsp;Undo</button>
             <button id="redoBtn" disabled>Redo&nbsp;▶</button>
             <button id="resetBtn">Reset</button>
-            <button id="tutorialBtn" onclick="window.open('https://github.com/fabifuu/circular-connect-four?tab=readme-ov-file#circular-connect-four', '_blank')">Tutorial</button>
+            <button id="tutorialBtn" onclick="window.open('https://example.com/tutorial', '_blank')">Tutorial</button>
         </div>
         <div class="status" id="status">Red's turn</div>
     </div>
@@ -104,7 +104,7 @@
                 this.history = [];
                 this.redoStack = [];
                 this.gameOver = false;
-                
+
                 this.initializeBoard();
                 this.updateButtons();
             }
@@ -113,6 +113,7 @@
                 const svg = document.querySelector('.board');
                 svg.innerHTML = '';
 
+                // Create game segments FIRST
                 for (let ring = 0; ring < RINGS; ring++) {
                     const outerRadius = RADIUS * (ring + 1) / RINGS;
                     const innerRadius = RADIUS * ring / RINGS;
@@ -120,20 +121,79 @@
                     for (let segment = 0; segment < SEGMENTS; segment++) {
                         const startAngle = segment * 360 / SEGMENTS;
                         const endAngle = (segment + 1) * 360 / SEGMENTS;
-                        
+
                         const path = this.createSegmentPath(innerRadius, outerRadius, startAngle, endAngle);
                         const element = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                        
+
                         element.setAttribute('d', path);
                         element.classList.add('segment');
                         element.dataset.ring = ring;
                         element.dataset.segment = segment;
-                        
+
                         element.addEventListener('click', () => this.makeMove(ring, segment));
                         svg.appendChild(element);
                     }
                 }
+
+                // THEN add ring numbers (1-4)
+                for (let ring = 0; ring < RINGS; ring++) {
+                    const radius = RADIUS * (ring + 0.5) / RINGS;
+                    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    text.setAttribute('x', CENTER - 1);
+                    text.setAttribute('y', CENTER - radius);
+                    text.setAttribute('text-anchor', 'end');
+                    text.setAttribute('alignment-baseline', 'middle');
+                    text.setAttribute('font-size', '3.7');
+                    text.setAttribute('fill', 'black');
+                    text.textContent = ring + 1;
+                    svg.appendChild(text);
+                }
+
+                // THEN add segment letters (A-H)
+                for (let segment = 0; segment < SEGMENTS; segment++) {
+                    const angle = segment * 360 / SEGMENTS - 70;
+                    const radius = RADIUS + 4;
+                    const x = CENTER + radius * Math.cos(angle * Math.PI / 180);
+                    const y = CENTER + radius * Math.sin(angle * Math.PI / 180);
+                    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    text.setAttribute('x', x);
+                    text.setAttribute('y', y);
+                    text.setAttribute('text-anchor', 'middle');
+                    text.setAttribute('alignment-baseline', 'middle');
+                    text.setAttribute('font-size', '4.5');
+                    text.setAttribute('fill', 'black');
+                    text.textContent = String.fromCharCode(65 + segment);
+                    svg.appendChild(text);
+                }
+
+                // FINALLY add move number text elements
+                for (let ring = 0; ring < RINGS; ring++) {
+                    const outerRadius = RADIUS * (ring + 1) / RINGS;
+                    const innerRadius = RADIUS * ring / RINGS;
+
+                    for (let segment = 0; segment < SEGMENTS; segment++) {
+                        const startAngle = segment * 360 / SEGMENTS;
+                        const endAngle = (segment + 1) * 360 / SEGMENTS;
+                        const midRadius = (outerRadius + innerRadius) / 2;
+                        const midAngle = (startAngle + endAngle) / 2 - 90;
+                        const textX = CENTER + midRadius * Math.cos(midAngle * Math.PI / 180);
+                        const textY = CENTER + midRadius * Math.sin(midAngle * Math.PI / 180);
+
+                        const moveNumber = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                        moveNumber.setAttribute('x', textX);
+                        moveNumber.setAttribute('y', textY);
+                        moveNumber.setAttribute('text-anchor', 'middle');
+                        moveNumber.setAttribute('alignment-baseline', 'middle');
+                        moveNumber.setAttribute('font-size', '8');
+                        moveNumber.setAttribute('fill', 'white');
+                        moveNumber.classList.add('move-number');
+                        moveNumber.dataset.ring = ring;
+                        moveNumber.dataset.segment = segment;
+                        svg.appendChild(moveNumber);
+                    }
+                }
             }
+
 
             createSegmentPath(innerRadius, outerRadius, startAngle, endAngle) {
                 const startRadians = (startAngle - 90) * Math.PI / 180;
@@ -143,7 +203,7 @@
                 const innerStartY = CENTER + innerRadius * Math.sin(startRadians);
                 const innerEndX = CENTER + innerRadius * Math.cos(endRadians);
                 const innerEndY = CENTER + innerRadius * Math.sin(endRadians);
-                
+
                 const outerStartX = CENTER + outerRadius * Math.cos(startRadians);
                 const outerStartY = CENTER + outerRadius * Math.sin(startRadians);
                 const outerEndX = CENTER + outerRadius * Math.cos(endRadians);
@@ -159,25 +219,33 @@
                 `;
             }
 
-            makeMove(ring, segment) {
-                if (this.gameOver || this.board[ring][segment] !== null) return;
+                makeMove(ring, segment) {
+                    if (this.gameOver || this.board[ring][segment] !== null) return;
 
-                this.board[ring][segment] = this.currentPlayer;
-                this.history.push({ring, segment, player: this.currentPlayer});
-                this.redoStack = [];
-                
-                this.updateBoard();
-                
-                if (this.checkWin(ring, segment)) {
-                    this.gameOver = true;
-                    document.getElementById('status').textContent = `${this.currentPlayer.toUpperCase()} wins!`;
-                } else {
-                    this.currentPlayer = this.currentPlayer === 'red' ? 'blue' : 'red';
-                    document.getElementById('status').textContent = `${this.currentPlayer.toUpperCase()}'s turn`;
+                    this.board[ring][segment] = this.currentPlayer;
+                    this.history.push({ring, segment, player: this.currentPlayer});
+                    // Update move number
+                    const moveNumber = document.querySelector(`text.move-number[data-ring="${ring}"][data-segment="${segment}"]`);
+                    if (moveNumber) {
+                        moveNumber.textContent = this.history.length;
+                    }
+
+                    this.redoStack = [];
+
+                    this.updateBoard();
+
+                    if (this.checkWin(ring, segment)) {
+                        this.gameOver = true;
+                        document.getElementById('status').textContent = `${this.currentPlayer.toUpperCase()} wins!`;
+                    } else {
+                        this.currentPlayer = this.currentPlayer === 'red' ? 'blue' : 'red';
+                        document.getElementById('status').textContent = `${this.currentPlayer.toUpperCase()}'s turn`;
+                    }
+
+                    this.updateButtons();
+                    document.querySelectorAll('.move-number').forEach(el => el.textContent = '');
+
                 }
-                
-                this.updateButtons();
-            }
 
             checkWin(lastRing, lastSegment) {
 				const directions = [
@@ -212,7 +280,7 @@
                 for (let i = 0; i < 4; i++) {
                     const ring = startRing + direction[i][0];
                     let segment = (startSegment + direction[i][1] + SEGMENTS) % SEGMENTS;
-                    
+
                     if (ring < 0 || ring >= RINGS || this.board[ring][segment] !== player) {
                         return false;
                     }
@@ -222,13 +290,15 @@
 
             undo() {
                 if (this.history.length === 0) return;
-                
+
                 const move = this.history.pop();
                 this.redoStack.push(move);
                 this.board[move.ring][move.segment] = null;
+                document.querySelector(`text.move-number[data-ring="${move.ring}"][data-segment="${move.segment}"]`).textContent = '';
+
                 this.currentPlayer = move.player;
                 this.gameOver = false;
-                
+
                 this.updateBoard();
                 document.getElementById('status').textContent = `${this.currentPlayer.toUpperCase()}'s turn`;
                 this.updateButtons();
@@ -236,7 +306,7 @@
 
             redo() {
                 if (this.redoStack.length === 0) return;
-                
+
                 const move = this.redoStack.pop();
                 this.makeMove(move.ring, move.segment);
             }
@@ -247,7 +317,7 @@
                 this.redoStack = [];
                 this.currentPlayer = 'red';
                 this.gameOver = false;
-                
+
                 this.updateBoard();
                 document.getElementById('status').textContent = "Red's turn";
                 this.updateButtons();
@@ -272,7 +342,7 @@
         }
 
         const game = new Game();
-        
+
         document.getElementById('undoBtn').addEventListener('click', () => game.undo());
         document.getElementById('redoBtn').addEventListener('click', () => game.redo());
         document.getElementById('resetBtn').addEventListener('click', () => game.reset());
