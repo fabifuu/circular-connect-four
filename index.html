@@ -74,6 +74,7 @@
         #tutorialBtn:hover {
             background-color: #0056b3; /* Darker blue on hover */
         }
+
     </style>
 </head>
 <body>
@@ -87,6 +88,10 @@
             <button id="redoBtn" disabled>Redo&nbsp;▶</button>
             <button id="resetBtn">Reset</button>
             <button id="tutorialBtn" onclick="window.open('https://example.com/tutorial', '_blank')">Tutorial</button>
+        </div>
+    <div id="log-container" style="margin-top: 10px;">
+        Moves:
+    </div>
         </div>
         <div class="status" id="status">Red's turn</div>
     </div>
@@ -194,6 +199,41 @@
                 }
             }
 
+            undo() {
+    if (this.history.length === 0) return;
+
+    const lastMove = this.history.pop();
+    this.redoStack.push(lastMove);
+    this.board[lastMove.ring][lastMove.segment] = null;
+
+    // Clear the move number
+    const moveNumber = document.querySelector(
+        `.move-number[data-ring="${lastMove.ring}"][data-segment="${lastMove.segment}"]`
+    );
+    if (moveNumber) moveNumber.textContent = '';
+
+    // Update the move log
+    const logContainer = document.getElementById('log-container');
+    const moves = this.history.map(move =>
+        `${String.fromCharCode(65 + move.segment)}${move.ring + 1}`
+    );
+    logContainer.textContent = 'Moves: ' + moves.join(' ');
+
+    this.currentPlayer = lastMove.player;
+    this.gameOver = false;
+    this.updateBoard();
+    document.getElementById('status').textContent = `${this.currentPlayer.toUpperCase()}'s turn`;
+    this.updateButtons();
+}
+
+redo() {
+    if (this.redoStack.length === 0) return;
+
+    const move = this.redoStack.pop();
+    this.makeMove(move.ring, move.segment);
+}
+
+
 
             createSegmentPath(innerRadius, outerRadius, startAngle, endAngle) {
                 const startRadians = (startAngle - 90) * Math.PI / 180;
@@ -245,6 +285,16 @@
                     this.updateButtons();
                     document.querySelectorAll('.move-number').forEach(el => el.textContent = '');
 
+                                        // Update move log
+                    const logContainer = document.getElementById('log-container');
+                    const moveNotation = `${String.fromCharCode(65 + segment)}${ring + 1}`;
+                    if (logContainer.textContent === 'Moves: ') {
+                        logContainer.textContent += moveNotation;
+                    } else {
+                        logContainer.textContent += ' ' + moveNotation;
+                    }
+
+
                 }
 
             checkWin(lastRing, lastSegment) {
@@ -288,10 +338,23 @@
                 return true;
             }
 
-            undo() {
+           undo() {
                 if (this.history.length === 0) return;
 
                 const move = this.history.pop();
+
+                // Update the move log with remaining moves
+                const logContainer = document.getElementById('log-container');
+                logContainer.textContent = 'Moves: ';
+                this.history.forEach((move, index) => {
+                    const moveNotation = `${String.fromCharCode(65 + move.segment)}${move.ring + 1}`;
+                    if (index === 0) {
+                        logContainer.textContent += moveNotation;
+                    } else {
+                        logContainer.textContent += ' ' + moveNotation;
+                    }
+                });
+
                 this.redoStack.push(move);
                 this.board[move.ring][move.segment] = null;
                 document.querySelector(`text.move-number[data-ring="${move.ring}"][data-segment="${move.segment}"]`).textContent = '';
@@ -321,6 +384,7 @@
                 this.updateBoard();
                 document.getElementById('status').textContent = "Red's turn";
                 this.updateButtons();
+                document.getElementById('log-container').textContent = 'Moves: ';
             }
 
             updateBoard() {
