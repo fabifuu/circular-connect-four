@@ -226,39 +226,12 @@
     this.updateButtons();
 }
 
-            redo() {
-                if (this.redoStack.length === 0) return;
+redo() {
+    if (this.redoStack.length === 0) return;
 
-                const moveToRedo = this.redoStack.pop();
-                this.history.push(moveToRedo);
-                this.board[moveToRedo.ring][moveToRedo.segment] = moveToRedo.player;
-
-                // Update move number
-                const moveNumber = document.querySelector(
-                    `.move-number[data-ring="${moveToRedo.ring}"][data-segment="${moveToRedo.segment}"]`
-                );
-                if (moveNumber) moveNumber.textContent = this.history.length;
-
-                // Update the move log
-                const logContainer = document.getElementById('log-container');
-                const moves = this.history.map(move =>
-                    `${String.fromCharCode(65 + move.segment)}${move.ring + 1}`
-                );
-                logContainer.textContent = 'Moves: ' + moves.join(' ');
-
-                // Switch player
-                this.currentPlayer = moveToRedo.player === 'x' ? 'o' : 'x';
-                this.updateBoard();
-                document.getElementById('status').textContent = `${this.currentPlayer.toUpperCase()}'s turn`;
-                this.updateButtons();
-
-                // Check for win after redoing move
-                if (this.checkWin(moveToRedo.ring, moveToRedo.segment, moveToRedo.player)) {
-                    this.gameOver = true;
-                    document.getElementById('status').textContent = `${moveToRedo.player.toUpperCase()} wins!`;
-                    this.updateButtons();
-                }
-            }
+    const move = this.redoStack.pop();
+    this.makeMove(move.ring, move.segment);
+}
 
 
 
@@ -397,8 +370,35 @@
             redo() {
                 if (this.redoStack.length === 0) return;
 
-                const move = this.redoStack.pop();
-                this.makeMove(move.ring, move.segment);
+                const moveToRedo = this.redoStack.pop();
+                this.history.push(moveToRedo);
+                this.board[moveToRedo.ring][moveToRedo.segment] = moveToRedo.player;
+
+                // Update move number
+                const moveNumber = document.querySelector(
+                    `.move-number[data-ring="${moveToRedo.ring}"][data-segment="${moveToRedo.segment}"]`
+                );
+                if (moveNumber) moveNumber.textContent = this.history.length;
+
+                // Update the move log
+                const logContainer = document.getElementById('log-container');
+                const moves = this.history.map(move =>
+                    `${String.fromCharCode(65 + move.segment)}${move.ring + 1}`
+                );
+                logContainer.textContent = 'Moves: ' + moves.join(' ');
+
+                // Switch player
+                this.currentPlayer = moveToRedo.player === 'x' ? 'o' : 'x';
+                this.updateBoard();
+                document.getElementById('status').textContent = `${this.currentPlayer.toUpperCase()}'s turn`;
+                this.updateButtons();
+
+                // Check for win after redoing move
+                if (this.checkWin(moveToRedo.ring, moveToRedo.segment, moveToRedo.player)) {
+                    this.gameOver = true;
+                    document.getElementById('status').textContent = `${moveToRedo.player.toUpperCase()} wins!`;
+                    this.updateButtons();
+                }
             }
 
             reset() {
